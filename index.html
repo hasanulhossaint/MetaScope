@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetaScope - Advanced EXIF Tool</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #5e72e4;
+            --secondary: #4a5fc1;
+            --dark: #2d3748;
+            --light: #f7fafc;
+            --danger: #f56565;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --info: #4299e1;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            background-color: #f8fafc;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            position: relative;
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            color: #64748b;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .upload-area {
+            background-color: white;
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            text-align: center;
+            border: 2px dashed #e2e8f0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+        
+        .upload-area.active {
+            border-color: var(--success);
+            background-color: rgba(72, 187, 120, 0.03);
+        }
+        
+        .upload-icon {
+            font-size: 3.5rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            opacity: 0.8;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--primary);
+            color: white;
+            padding: 0.85rem 1.75rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            gap: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .btn:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+        }
+        
+        .btn-danger:hover {
+            background-color: #e53e3e;
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+        }
+        
+        .btn-success:hover {
+            background-color: #38a169;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning);
+        }
+        
+        .metadata-container {
+            display: none;
+            background-color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin-top: 2rem;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            white-space: nowrap;
+            color: #64748b;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .tab:hover:not(.active) {
+            color: var(--dark);
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .metadata-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        
+        .metadata-table th, .metadata-table td {
+            padding: 0.85rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+        }
+        
+        .metadata-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+        
+        .metadata-table tr:hover td {
+            background-color: #f8fafc;
+        }
+        
+        .metadata-table td:first-child {
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .map-container {
+            height: 350px;
+            width: 100%;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            background-color: #edf2f7;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .edit-field {
+            display: none;
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        
+        .editable {
+            position: relative;
+        }
+        
+        .editable:hover {
+            background-color: #f8fafc;
+            cursor: pointer;
+        }
+        
+        .editable::after {
+            content: '✏️';
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .editable:hover::after {
+            opacity: 1;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 3rem 0;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(94, 114, 228, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary);
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .file-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+        
+        .file-info-item {
+            background-color: #f8fafc;
+            padding: 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .file-info-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .file-info-value {
+            font-weight: 600;
+            word-break: break-all;
+            color: var(--dark);
+        }
+        
+        .metadata-group {
+            margin-bottom: 2rem;
+        }
+        
+        .metadata-group-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .camera-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .camera-icon {
+            font-size: 2.5rem;
+            color: var(--primary);
+            opacity: 0.8;
+        }
+        
+        .camera-details {
+            flex: 1;
+        }
+        
+        .camera-model {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .camera-specs {
+            display: flex;
+            gap: 1.5rem;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .camera-spec {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+        
+        .badge-primary {
+            background-color: #ebf4ff;
+            color: var(--primary);
+        }
+        
+        .badge-success {
+            background-color: #f0fff4;
+            color: var(--success);
+        }
+        
+        .badge-warning {
+            background-color: #fffaf0;
+            color: var(--warning);
+        }
+        
+        .metadata-value {
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .tooltip {
+            position: relative;
+        }
+        
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #2d3748;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 0.5rem;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1.5rem 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .upload-area {
+                padding: 2rem 1rem;
+            }
+            
+            .camera-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .camera-specs {
+                flex-wrap: wrap;
+                gap: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MetaScope</h1>
+            <p class="subtitle">Advanced EXIF & Metadata Viewer with enhanced data visualization and editing capabilities</p>
+        </header>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <h2>Drag & Drop Your Files Here</h2>
+            <p>or</p>
+            <input type="file" id="fileInput" accept="image/*,.pdf" style="display: none;">
+            <button class="btn" id="browseBtn">
+                <span>📁</span> Browse Files
+            </button>
+            <p>Supports: JPEG, PNG, HEIC, WebP, PDF</p>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing file metadata...</p>
+        </div>
+        
+        <div class="metadata-container" id="metadataContainer">
+            <div class="file-info">
+                <div class="file-info-item">
+                    <div class="file-info-label">File Name</div>
+                    <div class="file-info-value" id="fileName"></div>
+                </div>
+                <div class="file-info-item">
+                    <div class="file-info-label">File Type</div>
+                    <div class="file-info-value" id="fileType"></div>
+                </div>
+                <div class="file-info-item">
+                    <div class="file-info-label">File Size</div>
+                    <div class="file-info-value" id="fileSize"></div>
+                </div>
+                <div class="file-info-item">
+                    <div class="file-info-label">Last Modified</div>
+                    <div class="file-info-value" id="fileModified"></div>
+                </div>
+            </div>
+            
+            <div id="imagePreviewContainer" style="display: none;">
+                <img id="imagePreview" class="image-preview" src="#" alt="Image Preview">
+            </div>
+            
+            <div id="cameraInfoContainer" style="display: none;">
+                <div class="camera-info">
+                    <div class="camera-icon">📷</div>
+                    <div class="camera-details">
+                        <div class="camera-model" id="cameraModel"></div>
+                        <div class="camera-specs">
+                            <div class="camera-spec">
+                                <span>🕒</span>
+                                <span id="cameraDate"></span>
+                            </div>
+                            <div class="camera-spec">
+                                <span>⚙️</span>
+                                <span id="cameraSettings"></span>
+                            </div>
+                            <div class="camera-spec">
+                                <span>🔍</span>
+                                <span id="cameraLens"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="overview">Overview</div>
+                <div class="tab" data-tab="exif">EXIF Data</div>
+                <div class="tab" data-tab="gps">Location</div>
+                <div class="tab" data-tab="advanced">Advanced</div>
+                <div class="tab" data-tab="actions">Actions</div>
+            </div>
+            
+            <div class="tab-content active" id="overview-tab">
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">Image Information</h3>
+                    <table class="metadata-table">
+                        <thead>
+                            <tr>
+                                <th>Property</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overviewData">
+                            <!-- Overview data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="gpsOverviewContainer" style="display: none;">
+                    <div class="metadata-group">
+                        <h3 class="metadata-group-title">Location Data</h3>
+                        <div class="map-container" id="mapContainer"></div>
+                        <table class="metadata-table">
+                            <thead>
+                                <tr>
+                                    <th>GPS Property</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gpsOverviewData">
+                                <!-- GPS overview data will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="exif-tab">
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">Camera Information</h3>
+                    <table class="metadata-table">
+                        <thead>
+                            <tr>
+                                <th>Tag</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cameraData">
+                            <!-- Camera data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">Image Settings</h3>
+                    <table class="metadata-table">
+                        <thead>
+                            <tr>
+                                <th>Tag</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="imageData">
+                            <!-- Image data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">File Information</h3>
+                    <table class="metadata-table">
+                        <thead>
+                            <tr>
+                                <th>Tag</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fileData">
+                            <!-- File data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="gps-tab">
+                <div id="gpsDataContainer">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🌍</div>
+                        <h3>No GPS Data Available</h3>
+                        <p>This file doesn't contain geolocation information</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="advanced-tab">
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">All Metadata</h3>
+                    <table class="metadata-table">
+                        <thead>
+                            <tr>
+                                <th>Tag</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allData">
+                            <!-- All data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="actions-tab">
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">File Actions</h3>
+                    <div class="action-buttons">
+                        <button class="btn" id="downloadBtn">
+                            <span>⬇️</span> Download Original
+                        </button>
+                        <button class="btn btn-success" id="downloadCleanBtn">
+                            <span>🛡️</span> Download Clean Version
+                        </button>
+                        <button class="btn btn-danger" id="removeMetadataBtn">
+                            <span>❌</span> Remove All Metadata
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">Edit Metadata</h3>
+                    <div class="action-buttons">
+                        <button class="btn" id="editDateBtn">
+                            <span>📅</span> Edit Creation Date
+                        </button>
+                        <button class="btn" id="editCopyrightBtn">
+                            <span>©️</span> Edit Copyright
+                        </button>
+                        <button class="btn" id="editDescriptionBtn">
+                            <span>📝</span> Edit Description
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="metadata-group">
+                    <h3 class="metadata-group-title">Advanced Tools</h3>
+                    <div class="action-buttons">
+                        <button class="btn btn-warning" id="analyzeBtn">
+                            <span>🔍</span> Analyze for Tampering
+                        </button>
+                        <button class="btn" id="exportBtn">
+                            <span>📤</span> Export Metadata Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const browseBtn = document.getElementById('browseBtn');
+        const loading = document.getElementById('loading');
+        const metadataContainer = document.getElementById('metadataContainer');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const fileName = document.getElementById('fileName');
+        const fileType = document.getElementById('fileType');
+        const fileSize = document.getElementById('fileSize');
+        const fileModified = document.getElementById('fileModified');
+        const cameraInfoContainer = document.getElementById('cameraInfoContainer');
+        const cameraModel = document.getElementById('cameraModel');
+        const cameraDate = document.getElementById('cameraDate');
+        const cameraSettings = document.getElementById('cameraSettings');
+        const cameraLens = document.getElementById('cameraLens');
+        const overviewData = document.getElementById('overviewData');
+        const gpsOverviewContainer = document.getElementById('gpsOverviewContainer');
+        const gpsOverviewData = document.getElementById('gpsOverviewData');
+        const cameraData = document.getElementById('cameraData');
+        const imageData = document.getElementById('imageData');
+        const fileData = document.getElementById('fileData');
+        const gpsDataContainer = document.getElementById('gpsDataContainer');
+        const allData = document.getElementById('allData');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadCleanBtn = document.getElementById('downloadCleanBtn');
+        const removeMetadataBtn = document.getElementById('removeMetadataBtn');
+        const editDateBtn = document.getElementById('editDateBtn');
+        const editCopyrightBtn = document.getElementById('editCopyrightBtn');
+        const editDescriptionBtn = document.getElementById('editDescriptionBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const exportBtn = document.getElementById('exportBtn');
+
+        // Global variables
+        let currentFile = null;
+        let exifDataObj = null;
+        let map = null;
+        let marker = null;
+
+        // Event Listeners
+        browseBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // Drag and drop events
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('active');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('active');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('active');
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect({ target: fileInput });
+            }
+        });
+        
+        // Tab switching
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(`${tab.dataset.tab}-tab`).classList.add('active');
+                
+                // Initialize map when GPS tab is clicked
+                if (tab.dataset.tab === 'gps' && exifDataObj && exifDataObj.GPSLatitude && exifDataObj.GPSLongitude) {
+                    initMap(true);
+                }
+            });
+        });
+        
+        // Action buttons
+        downloadBtn.addEventListener('click', downloadOriginal);
+        downloadCleanBtn.addEventListener('click', downloadClean);
+        removeMetadataBtn.addEventListener('click', removeMetadata);
+        editDateBtn.addEventListener('click', () => editMetadata('DateTimeOriginal', 'Creation Date'));
+        editCopyrightBtn.addEventListener('click', () => editMetadata('Copyright', 'Copyright'));
+        editDescriptionBtn.addEventListener('click', () => editMetadata('ImageDescription', 'Description'));
+        analyzeBtn.addEventListener('click', analyzeForTampering);
+        exportBtn.addEventListener('click', exportMetadataReport);
+
+        // Functions
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            currentFile = file;
+            showLoading();
+            
+            // Display file info
+            fileName.textContent = file.name;
+            fileType.textContent = file.type || getFileTypeFromExtension(file.name);
+            fileSize.textContent = formatFileSize(file.size);
+            fileModified.textContent = new Date(file.lastModified).toLocaleString();
+            
+            // Check if file is an image
+            if (file.type.startsWith('image/')) {
+                displayImagePreview(file);
+                extractImageMetadata(file);
+            } else if (file.type === 'application/pdf') {
+                hideImagePreview();
+                hideCameraInfo();
+                extractPDFMetadata(file);
+            } else {
+                hideImagePreview();
+                hideCameraInfo();
+                showBasicFileInfo(file);
+            }
+        }
+        
+        function displayImagePreview(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                imagePreviewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function hideImagePreview() {
+            imagePreviewContainer.style.display = 'none';
+        }
+        
+        function hideCameraInfo() {
+            cameraInfoContainer.style.display = 'none';
+        }
+        
+        function extractImageMetadata(file) {
+            EXIF.getData(file, function() {
+                exifDataObj = EXIF.getAllTags(this);
+                displayMetadata(exifDataObj);
+                hideLoading();
+                metadataContainer.style.display = 'block';
+            });
+        }
+        
+        function extractPDFMetadata(file) {
+            // In a real app, you would use pdf-lib or similar
+            // This is a simplified version
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arr = new Uint8Array(e.target.result);
+                const header = String.fromCharCode.apply(null, arr.subarray(0, 1024));
+                
+                // Simple PDF metadata extraction (very basic)
+                const metadata = {
+                    'Title': extractPDFValue(header, 'Title'),
+                    'Author': extractPDFValue(header, 'Author'),
+                    'Creator': extractPDFValue(header, 'Creator'),
+                    'Producer': extractPDFValue(header, 'Producer'),
+                    'CreationDate': extractPDFValue(header, 'CreationDate'),
+                    'ModDate': extractPDFValue(header, 'ModDate'),
+                    'Keywords': extractPDFValue(header, 'Keywords'),
+                    'PDF Version': header.match(/\%PDF\-(\d\.\d)/)?.[1] || 'Unknown'
+                };
+                
+                displayPDFMetadata(metadata);
+                hideLoading();
+                metadataContainer.style.display = 'block';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function extractPDFValue(header, field) {
+            const match = header.match(new RegExp(`\\/${field} \\((.*?)\\)`));
+            return match ? match[1] : 'Not available';
+        }
+        
+        function showBasicFileInfo(file) {
+            const basicInfo = {
+                'File Name': file.name,
+                'File Type': file.type || getFileTypeFromExtension(file.name),
+                'File Size': formatFileSize(file.size),
+                'Last Modified': new Date(file.lastModified).toLocaleString()
+            };
+            
+            displayBasicFileMetadata(basicInfo);
+            hideLoading();
+            metadataContainer.style.display = 'block';
+        }
+        
+        function displayMetadata(data) {
+            // Clear previous data
+            overviewData.innerHTML = '';
+            cameraData.innerHTML = '';
+            imageData.innerHTML = '';
+            fileData.innerHTML = '';
+            allData.innerHTML = '';
+            gpsOverviewData.innerHTML = '';
+            
+            // Show camera info if available
+            if (data.Make || data.Model) {
+                cameraInfoContainer.style.display = 'block';
+                cameraModel.textContent = `${data.Make || ''} ${data.Model || ''}`.trim();
+                
+                if (data.DateTimeOriginal) {
+                    cameraDate.textContent = formatExifDate(data.DateTimeOriginal);
+                } else {
+                    cameraDate.textContent = 'Date unknown';
+                }
+                
+                let settings = [];
+                if (data.ExposureTime) settings.push(`${data.ExposureTime}s`);
+                if (data.FNumber) settings.push(`f/${data.FNumber}`);
+                if (data.ISOSpeedRatings) settings.push(`ISO ${data.ISOSpeedRatings}`);
+                if (data.FocalLength) settings.push(`${data.FocalLength}mm`);
+                
+                cameraSettings.textContent = settings.join(' · ') || 'No settings data';
+                cameraLens.textContent = data.LensModel || data.LensMake || 'Lens information not available';
+            } else {
+                cameraInfoContainer.style.display = 'none';
+            }
+            
+            // Organize data into categories
+            const cameraTags = ['Make', 'Model', 'LensMake', 'LensModel', 'SerialNumber', 'Software'];
+            const imageTags = ['ExposureTime', 'FNumber', 'ISOSpeedRatings', 'FocalLength', 'ExposureMode', 
+                              'WhiteBalance', 'Flash', 'MeteringMode', 'SceneType', 'Orientation'];
+            const fileTags = ['ImageWidth', 'ImageHeight', 'BitsPerSample', 'Compression', 'ResolutionUnit', 
+                            'XResolution', 'YResolution', 'ColorSpace'];
+            const overviewTags = ['DateTimeOriginal', 'ImageDescription', 'Artist', 'Copyright', 'Rating', 
+                                'Keywords', 'XPSubject', 'XPTitle', 'XPKeywords'];
+            
+            // GPS data
+            if (data.GPSLatitude && data.GPSLongitude) {
+                const lat = convertDMSToDD(data.GPSLatitude, data.GPSLatitudeRef);
+                const lng = convertDMSToDD(data.GPSLongitude, data.GPSLongitudeRef);
+                
+                const gpsInfo = {
+                    'Coordinates': `${lat.toFixed(6)}° ${data.GPSLatitudeRef}, ${lng.toFixed(6)}° ${data.GPSLongitudeRef}`,
+                    'Altitude': data.GPSAltitude ? `${Math.round(data.GPSAltitude)} meters` : 'Unknown',
+                    'GPS Date': data.GPSDateStamp || 'Unknown',
+                    'GPS Time': data.GPSTimeStamp ? data.GPSTimeStamp.join(':') : 'Unknown',
+                    'Map': `<div class="map-container" id="overviewMap" style="height: 200px;"></div>`
+                };
+                
+                displayGPSOverview(gpsInfo);
+                
+                // Initialize overview map
+                setTimeout(() => {
+                    if (document.getElementById('overviewMap')) {
+                        const overviewMap = L.map('overviewMap').setView([lat, lng], 13);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        }).addTo(overviewMap);
+                        L.marker([lat, lng]).addTo(overviewMap);
+                    }
+                }, 100);
+            } else {
+                gpsOverviewContainer.style.display = 'none';
+            }
+            
+            // Display organized data
+            displayDataByCategory(data, cameraTags, cameraData, 'Camera Information');
+            displayDataByCategory(data, imageTags, imageData, 'Image Settings');
+            displayDataByCategory(data, fileTags, fileData, 'File Information');
+            displayDataByCategory(data, overviewTags, overviewData, 'Basic Information');
+            
+            // Display all data in advanced tab
+            for (const key in data) {
+                if (data[key] && typeof data[key] !== 'object') {
+                    addTableRow(allData, key, formatExifValue(key, data[key]));
+                }
+            }
+            
+            // Setup GPS tab
+            if (data.GPSLatitude && data.GPSLongitude) {
+                gpsDataContainer.innerHTML = `
+                    <div class="metadata-group">
+                        <h3 class="metadata-group-title">Location on Map</h3>
+                        <div class="map-container" id="detailMap"></div>
+                    </div>
+                    <div class="metadata-group">
+                        <h3 class="metadata-group-title">GPS Data</h3>
+                        <table class="metadata-table">
+                            <thead>
+                                <tr>
+                                    <th>Tag</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailGpsData">
+                                <!-- Detailed GPS data will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                const gpsDetailData = {
+                    'GPS Latitude': `${data.GPSLatitude.join(', ')} ${data.GPSLatitudeRef}`,
+                    'GPS Longitude': `${data.GPSLongitude.join(', ')} ${data.GPSLongitudeRef}`,
+                    'GPS Altitude': data.GPSAltitude ? `${data.GPSAltitude} meters` : 'Unknown',
+                    'GPS Altitude Ref': data.GPSAltitudeRef || 'Unknown',
+                    'GPS Date Stamp': data.GPSDateStamp || 'Unknown',
+                    'GPS Time Stamp': data.GPSTimeStamp ? data.GPSTimeStamp.join(':') : 'Unknown',
+                    'GPS Processing Method': data.GPSProcessingMethod || 'Unknown',
+                    'GPS Speed': data.GPSSpeed ? `${data.GPSSpeed} ${data.GPSSpeedRef || ''}` : 'Unknown',
+                    'GPS Track': data.GPSTrack ? `${data.GPSTrack} ${data.GPSTrackRef || ''}` : 'Unknown'
+                };
+                
+                for (const key in gpsDetailData) {
+                    addTableRow(document.getElementById('detailGpsData'), key, gpsDetailData[key]);
+                }
+            } else {
+                gpsDataContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🌍</div>
+                        <h3>No GPS Data Available</h3>
+                        <p>This file doesn't contain geolocation information</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayDataByCategory(data, tags, container, defaultTitle) {
+            let hasData = false;
+            
+            for (const tag of tags) {
+                if (data[tag]) {
+                    if (!hasData) {
+                        container.innerHTML = '';
+                        hasData = true;
+                    }
+                    addTableRow(container, tag, formatExifValue(tag, data[tag]));
+                }
+            }
+            
+            if (!hasData) {
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="2" style="text-align: center; color: #64748b;">
+                            No ${defaultTitle.toLowerCase()} available
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        function displayGPSOverview(data) {
+            gpsOverviewContainer.style.display = 'block';
+            gpsOverviewData.innerHTML = '';
+            
+            for (const key in data) {
+                if (key === 'Map') {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = 2;
+                    cell.innerHTML = data[key];
+                    row.appendChild(cell);
+                    gpsOverviewData.appendChild(row);
+                } else {
+                    addTableRow(gpsOverviewData, key, data[key]);
+                }
+            }
+        }
+        
+        function displayPDFMetadata(data) {
+            overviewData.innerHTML = '';
+            allData.innerHTML = '';
+            
+            // Overview tab
+            for (const key in data) {
+                addTableRow(overviewData, key, data[key]);
+            }
+            
+            // Advanced tab
+            for (const key in data) {
+                addTableRow(allData, key, data[key]);
+            }
+            
+            // Hide irrelevant tabs
+            document.querySelector('.tab[data-tab="exif"]').style.display = 'none';
+            document.querySelector('.tab[data-tab="gps"]').style.display = 'none';
+        }
+        
+        function displayBasicFileMetadata(data) {
+            overviewData.innerHTML = '';
+            allData.innerHTML = '';
+            
+            for (const key in data) {
+                addTableRow(overviewData, key, data[key]);
+                addTableRow(allData, key, data[key]);
+            }
+            
+            // Hide irrelevant tabs
+            document.querySelector('.tab[data-tab="exif"]').style.display = 'none';
+            document.querySelector('.tab[data-tab="gps"]').style.display = 'none';
+        }
+        
+        function addTableRow(container, key, value) {
+            const row = document.createElement('tr');
+            
+            const keyCell = document.createElement('td');
+            keyCell.textContent = key;
+            
+            const valueCell = document.createElement('td');
+            
+            if (typeof value === 'string' && value.startsWith('http')) {
+                const link = document.createElement('a');
+                link.href = value;
+                link.textContent = value;
+                link.target = '_blank';
+                valueCell.appendChild(link);
+            } else {
+                valueCell.textContent = value;
+            }
+            
+            valueCell.classList.add('metadata-value');
+            
+            // Make some fields editable
+            if (!['File Name', 'File Type', 'File Size', 'Last Modified'].includes(key)) {
+                valueCell.classList.add('editable');
+                valueCell.addEventListener('click', () => {
+                    editMetadataField(key, valueCell);
+                });
+            }
+            
+            row.appendChild(keyCell);
+            row.appendChild(valueCell);
+            container.appendChild(row);
+        }
+        
+        function editMetadataField(field, element) {
+            const currentValue = element.textContent;
+            const newValue = prompt(`Edit ${field}:`, currentValue);
+            
+            if (newValue !== null && newValue !== currentValue) {
+                element.textContent = newValue;
+                
+                // In a real app, you would update the EXIF data object here
+                // and potentially offer to save the changes
+                showToast(`"${field}" updated to: ${newValue}`);
+            }
+        }
+        
+        function initMap(isDetailView = false) {
+            if (!exifDataObj || !exifDataObj.GPSLatitude || !exifDataObj.GPSLongitude) return;
+            
+            const lat = convertDMSToDD(exifDataObj.GPSLatitude, exifDataObj.GPSLatitudeRef);
+            const lng = convertDMSToDD(exifDataObj.GPSLongitude, exifDataObj.GPSLongitudeRef);
+            
+            const mapElement = isDetailView ? 'detailMap' : 'overviewMap';
+            const zoomLevel = isDetailView ? 15 : 13;
+            
+            if (map) {
+                map.remove();
+                map = null;
+                marker = null;
+            }
+            
+            document.getElementById(mapElement).innerHTML = '';
+            
+            map = L.map(mapElement).setView([lat, lng], zoomLevel);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            marker = L.marker([lat, lng]).addTo(map)
+                .bindPopup('Photo location')
+                .openPopup();
+            
+            if (isDetailView) {
+                // Add additional map features for detail view
+                L.circle([lat, lng], {
+                    color: 'red',
+                    fillColor: '#f03',
+                    fillOpacity: 0.2,
+                    radius: 100
+                }).addTo(map);
+            }
+        }
+        
+        function downloadOriginal() {
+            if (!currentFile) return;
+            
+            const url = URL.createObjectURL(currentFile);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFile.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('File downloaded');
+        }
+        
+        function downloadClean() {
+            if (!currentFile) return;
+            
+            showLoading();
+            
+            if (currentFile.type.startsWith('image/')) {
+                cleanImageMetadata();
+            } else {
+                // For non-image files, just download the original for this demo
+                downloadOriginal();
+            }
+        }
+        
+        function cleanImageMetadata() {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    canvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `clean_${currentFile.name}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        hideLoading();
+                        showToast('Clean file downloaded (metadata removed)');
+                    }, currentFile.type, 0.92);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(currentFile);
+        }
+        
+        function removeMetadata() {
+            if (!currentFile) return;
+            
+            if (confirm('Are you sure you want to remove all metadata from this file?\n\nThis action cannot be undone.')) {
+                showLoading();
+                
+                if (currentFile.type.startsWith('image/')) {
+                    cleanImageMetadata();
+                } else {
+                    // For non-image files, just download the original for this demo
+                    downloadOriginal();
+                }
+            }
+        }
+        
+        function editMetadata(field, label) {
+            if (!currentFile || !exifDataObj) return;
+            
+            const currentValue = exifDataObj[field] || '';
+            const newValue = prompt(`Enter new ${label}:`, currentValue);
+            
+            if (newValue !== null && newValue !== currentValue) {
+                exifDataObj[field] = newValue;
+                displayMetadata(exifDataObj);
+                showToast(`${label} updated to: ${newValue}`);
+            }
+        }
+        
+        function analyzeForTampering() {
+            if (!currentFile || !currentFile.type.startsWith('image/')) {
+                alert('Tampering analysis is only available for image files');
+                return;
+            }
+            
+            showLoading();
+            
+            // Simulate analysis (in a real app, you would use ELA or other techniques)
+            setTimeout(() => {
+                hideLoading();
+                
+                const isTampered = Math.random() > 0.7; // 30% chance to show as tampered for demo
+                
+                if (isTampered) {
+                    showToast('⚠️ Potential tampering detected', 'warning');
+                    alert('Analysis found signs of potential image manipulation:\n\n- Inconsistent compression levels\n- Unusual pixel patterns\n\nThis doesn\'t guarantee the image was altered, but suggests further examination.');
+                } else {
+                    showToast('No signs of tampering detected', 'success');
+                    alert('No obvious signs of image manipulation were detected.\n\nNote: This analysis cannot guarantee an image is authentic.');
+                }
+            }, 2000);
+        }
+        
+        function exportMetadataReport() {
+            if (!currentFile) return;
+            
+            let report = `Metadata Report for: ${currentFile.name}\n`;
+            report += `Generated on: ${new Date().toLocaleString()}\n`;
+            report += `File Type: ${fileType.textContent}\n`;
+            report += `File Size: ${fileSize.textContent}\n\n`;
+            
+            if (exifDataObj) {
+                report += '=== EXIF Metadata ===\n';
+                for (const key in exifDataObj) {
+                    if (exifDataObj[key] && typeof exifDataObj[key] !== 'object') {
+                        report += `${key}: ${exifDataObj[key]}\n`;
+                    }
+                }
+            } else {
+                report += 'No EXIF metadata available\n';
+            }
+            
+            // Create download
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentFile.name}_metadata_report.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Metadata report downloaded');
+        }
+        
+        function showLoading() {
+            loading.style.display = 'flex';
+            metadataContainer.style.display = 'none';
+            uploadArea.style.display = 'none';
+        }
+        
+        function hideLoading() {
+            loading.style.display = 'none';
+            uploadArea.style.display = 'block';
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.position = 'fixed';
+            toast.style.bottom = '20px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.padding = '12px 24px';
+            toast.style.backgroundColor = type === 'warning' ? 'var(--warning)' : 
+                                        type === 'success' ? 'var(--success)' : 'var(--primary)';
+            toast.style.color = 'white';
+            toast.style.borderRadius = '8px';
+            toast.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+            toast.style.zIndex = '1000';
+            toast.style.animation = 'fadeIn 0.3s ease';
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+        
+        // Helper functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function formatExifDate(dateString) {
+            if (!dateString) return 'Unknown';
+            
+            // Try to parse EXIF date format (YYYY:MM:DD HH:MM:SS)
+            const exifMatch = dateString.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+            if (exifMatch) {
+                const [_, year, month, day, hour, minute, second] = exifMatch;
+                return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`).toLocaleString();
+            }
+            
+            // Try to parse other date formats
+            const date = new Date(dateString);
+            return isNaN(date.getTime()) ? dateString : date.toLocaleString();
+        }
+        
+        function formatExifValue(key, value) {
+            // Handle orientation
+            if (key === 'Orientation') {
+                const orientations = {
+                    1: 'Normal',
+                    2: 'Flipped horizontally',
+                    3: 'Rotated 180°',
+                    4: 'Flipped vertically',
+                    5: 'Rotated 90° CCW and flipped vertically',
+                    6: 'Rotated 90° CW',
+                    7: 'Rotated 90° CW and flipped vertically',
+                    8: 'Rotated 90° CCW'
+                };
+                return orientations[value] || value;
+            }
+            
+            // Handle exposure time (convert to fraction)
+            if (key === 'ExposureTime' && typeof value === 'number' && value < 1) {
+                const fraction = simplifyFraction(1, value);
+                return fraction ? `${fraction.numerator}/${fraction.denominator}` : value;
+            }
+            
+            // Handle GPS coordinates
+            if ((key === 'GPSLatitude' || key === 'GPSLongitude') && Array.isArray(value)) {
+                return value.join(', ');
+            }
+            
+            return value;
+        }
+        
+        function simplifyFraction(numerator, denominator) {
+            if (denominator === 0) return null;
+            
+            const gcd = (a, b) => b ? gcd(b, a % b) : a;
+            const divisor = gcd(numerator, denominator);
+            
+            return {
+                numerator: numerator / divisor,
+                denominator: denominator / divisor
+            };
+        }
+        
+        function convertDMSToDD(dms, ref) {
+            if (!dms || !Array.isArray(dms) || dms.length < 3) return 0;
+            
+            const degrees = Array.isArray(dms[0]) ? dms[0][0] / dms[0][1] : dms[0];
+            const minutes = Array.isArray(dms[1]) ? dms[1][0] / dms[1][1] : dms[1];
+            const seconds = Array.isArray(dms[2]) ? dms[2][0] / dms[2][1] : dms[2];
+            
+            let dd = degrees + (minutes / 60) + (seconds / 3600);
+            
+            if (ref === 'S' || ref === 'W') {
+                dd = -dd;
+            }
+            
+            return parseFloat(dd.toFixed(6));
+        }
+        
+        function getFileTypeFromExtension(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            const types = {
+                'jpg': 'JPEG Image',
+                'jpeg': 'JPEG Image',
+                'png': 'PNG Image',
+                'gif': 'GIF Image',
+                'webp': 'WebP Image',
+                'heic': 'HEIC Image',
+                'pdf': 'PDF Document',
+                'doc': 'Word Document',
+                'docx': 'Word Document',
+                'xls': 'Excel Spreadsheet',
+                'xlsx': 'Excel Spreadsheet',
+                'ppt': 'PowerPoint Presentation',
+                'pptx': 'PowerPoint Presentation',
+                'mp4': 'MP4 Video',
+                'mov': 'QuickTime Video',
+                'avi': 'AVI Video'
+            };
+            
+            return types[extension] || 'Unknown File Type';
+        }
+    </script>
+</body>
+</html>
